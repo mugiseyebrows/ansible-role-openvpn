@@ -6,8 +6,11 @@ Ansible role to configure OpenVPN and manage client certificates
 Install
 -------
 
+This role uses `ansible.posix` galaxy, so we need to install it too.
+
 ```bash
 ansible-galaxy role install mugiseyebrows.openvpn
+ansible-galaxy collection install ansible.posix --ignore-certs
 ```
 
 Role Parameters
