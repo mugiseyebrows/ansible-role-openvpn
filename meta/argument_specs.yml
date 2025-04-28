@@ -1,0 +1,20 @@
+argument_specs:
+  main:
+    short_description: Main entry point for the myapp role
+    description:
+    author: Doronin Stanislav
+    options:
+      reroute_all_traffic:
+        type: "bool"
+        required: true
+        description: Should all client traffic go through vpn
+      issued:
+        type: "list"
+        elements: "str"
+        required: true
+        description: List of certificates to issue
+      revoked:
+        type: "list"
+        elements: "str"
+        required: true
+        description: List of certificates to revoke

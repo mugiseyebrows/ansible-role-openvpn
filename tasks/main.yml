@@ -1,0 +1,66 @@
+---
+
+- name: Install OpenVPN
+  package:
+    name: openvpn
+    state: present
+
+- name: Write server conf
+  template:
+    src: server.conf.j2
+    dest: /etc/openvpn/server.conf
+
+- name: Install easy-rsa
+  package:
+    name: easy-rsa
+    state: present
+
+- name: Softlink easyrsa
+  file:
+    src: /usr/share/easy-rsa/easyrsa
+    dest: /usr/bin/easyrsa
+    state: link
+ 
+- name: Init CA
+  include_tasks:
+    file: init.ca.yml
+
+- name: Reroute all traffic
+  include_tasks:
+    file: reroute.yml
+  when: reroute_all_traffic
+
+- name: Issue certs
+  issue:
+    server: "{{ ansible_host }}"
+    ca_dir: "{{ ca_dir }}"
+    issued: "{{ issued }}"
+  register: issue
+
+- name: Revoke certs
+  revoke:
+    ca_dir: "{{ ca_dir }}"
+    revoked: "{{ revoked }}"
+  register: revoke
+
+- name: Generate crl
+  shell:
+    chdir: "{{ ca_dir }}"
+    cmd: |
+      ./easyrsa --batch gen-crl
+      cp pki/crl.pem /etc/openvpn
+  when: revoke.revoked | length > 0
+
+- name: Enable and start service
+  systemd:
+    enabled: true
+    name: openvpn@server
+    state: started
+
+- name: Fetch issued certs
+  fetch:
+    src: "{{ item }}"
+    dest: ./
+    flat: yes
+  ignore_errors: true
+  loop: "{{ issue.files }}"

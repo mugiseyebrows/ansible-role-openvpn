@@ -1,0 +1,24 @@
+--- 
+
+- name: Install iptables-persistent
+  package:
+    name: iptables-persistent
+    state: present
+
+- name: Append ip tables
+  iptables:
+    table: nat
+    chain: POSTROUTING
+    out_interface: "{{ ansible_facts.interfaces | select('match', '^(eth|ens)') | first }}"
+    source: "{{ vpn_ip }}/24"
+    jump: MASQUERADE
+
+- name: Persistent ip tables
+  shell: iptables-save > /etc/iptables/rules.v4
+
+- name: Enable IPv4 forwarding
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: '1'
+    state: present
+    reload: true

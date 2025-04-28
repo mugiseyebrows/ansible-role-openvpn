@@ -1,0 +1,7 @@
+galaxy_info:
+  author: Doronin Stanislav
+  description: Role to configure OpenVPN and manage client certificates
+  license: MIT
+  min_ansible_version: 2.1
+  galaxy_tags: [openvpn, easyrsa]
+dependencies: []
