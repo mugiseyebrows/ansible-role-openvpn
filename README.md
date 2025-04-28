@@ -48,7 +48,7 @@ Example Playbook
 ```yaml
 ---
 - hosts: all
-  gather_facts: no
+  gather_facts: yes
   roles:
   - name: mugiseyebrows.openvpn
     reroute_all_traffic: false
