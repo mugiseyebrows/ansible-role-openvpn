@@ -47,7 +47,7 @@
   shell:
     chdir: "{{ ca_dir }}"
     cmd: |
-      ./easyrsa --batch gen-crl
+      easyrsa --batch gen-crl
       cp pki/crl.pem /etc/openvpn
   when: revoke.revoked | length > 0
 
