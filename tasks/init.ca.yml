@@ -44,3 +44,11 @@
       openvpn --genkey --secret pki/private/ta.key
       cp pki/dh.pem pki/private/ta.key /etc/openvpn
   when: not ca.stat.exists
+
+- name: Generate crl
+  shell:
+    chdir: "{{ ca_dir }}"
+    cmd: |
+      easyrsa --batch gen-crl
+      cp pki/crl.pem /etc/openvpn
+  when: not ca.stat.exists
