@@ -35,6 +35,8 @@
     server: "{{ ansible_host }}"
     ca_dir: "{{ ca_dir }}"
     issued: "{{ issued }}"
+  environment:
+    EASYRSA_EXT_DIR: "{{ ca_dir }}/x509-types"
   register: issue
 
 - name: Revoke certs

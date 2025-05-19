@@ -26,6 +26,7 @@
       cp pki/ca.crt pki/private/ca.key /etc/openvpn
   environment:
     EASYRSA_REQ_CN: Easy-RSA CA
+    EASYRSA_EXT_DIR: "{{ ca_dir }}/x509-types"
   when: not ca.stat.exists
 
 - name: Generate server key
@@ -34,6 +35,8 @@
     cmd: |
       easyrsa --batch build-server-full server nopass
       cp pki/issued/server.crt pki/private/server.key /etc/openvpn
+  environment:
+    EASYRSA_EXT_DIR: "{{ ca_dir }}/x509-types"
   when: not ca.stat.exists
 
 - name: Generate dh and ta
