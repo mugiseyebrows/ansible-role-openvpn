@@ -59,7 +59,7 @@ Example Playbook
     revoked: []
 ```
 
-To issue and revoke certificates edit parameters and rerun playbook. Issued certificates will be downloaded into current directory.
+To issue and revoke certificates edit parameters and rerun playbook. Issued certificates will be downloaded into playbook directory.
 
 License
 -------
