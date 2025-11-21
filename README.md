@@ -49,7 +49,6 @@ Example Playbook
 ----------------
 
 ```yaml
----
 - hosts: all
   gather_facts: yes
   roles:
@@ -60,6 +59,33 @@ Example Playbook
 ```
 
 To issue and revoke certificates edit parameters and rerun playbook. Issued certificates will be downloaded into playbook directory.
+
+Troubleshooting
+---------------
+
+Service status
+
+```bash
+systemctl status openvpn@server
+```
+
+Service journal
+
+```bash
+journalctl -u openvpn@server
+```
+
+Show iptables rules
+
+```bash
+iptables -S
+```
+
+Check ip forwarding
+
+```bash
+sysctl net.ipv4.ip_forward
+```
 
 License
 -------
