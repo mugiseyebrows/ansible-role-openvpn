@@ -1,29 +1,30 @@
 ---
 
-- name: Install OpenVPN
-  package:
-    name: openvpn
-    state: present
+- name: Install OpenVPN and easy-rsa
+  apt:
+    name: 
+    - openvpn
+    - easy-rsa
+    - iptables-persistent
+  when: not fast
 
 - name: Write server conf
   template:
     src: server.conf.j2
     dest: /etc/openvpn/server.conf
-
-- name: Install easy-rsa
-  package:
-    name: easy-rsa
-    state: present
+  when: not fast
 
 - name: Softlink easyrsa
   file:
     src: /usr/share/easy-rsa/easyrsa
     dest: /usr/bin/easyrsa
     state: link
+  when: not fast
  
 - name: Init CA
   include_tasks:
     file: init.ca.yml
+  when: not fast
 
 - name: Reroute all traffic
   include_tasks:
@@ -46,13 +47,9 @@
   register: revoke
 
 - name: Generate crl
-  shell:
-    chdir: "{{ ca_dir }}"
-    cmd: |
-      easyrsa --batch gen-crl
-      cp pki/crl.pem /etc/openvpn
-  when: revoke.revoked | length > 0
-
+  generate_crl:
+    ca_dir: "{{ ca_dir }}"
+  
 - name: Enable and start service
   systemd:
     enabled: true

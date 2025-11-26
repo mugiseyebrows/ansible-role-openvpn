@@ -1,9 +1,10 @@
 from ansible.module_utils.basic import AnsibleModule
 
-from ansible.module_utils.read_index import read_index
+from ansible.module_utils.openvpnutils import read_index, is_legacy_ca, source_vars
 
+import re
 import os
-from subprocess import PIPE, Popen
+from subprocess import PIPE, Popen, check_output
 from dataclasses import dataclass
 import zipfile
 
@@ -69,67 +70,127 @@ tls-auth ta.key 1
     os.remove(conf_path)
 
 
-def main():
-    module = AnsibleModule(
-        argument_spec=dict(
-            issued=dict(type='list', elements='str'),
-            ca_dir=dict(type='str'),
-            server=dict(type='str')
-        )
-    )
-    params = module.params
-    clients = params['issued']
+def issue(client, params, res):
 
     ca_dir = params['ca_dir']
 
     def ca_path(*args):
         return os.path.join(ca_dir, *args)
+    
+    if not os.path.exists(ca_path('pki')):
+        res['errors'].append({'error':'pki dir not found, legacy easyrsa ca?'})
+        return
 
-    issued, revoked = read_index(ca_dir)
+    proc = Popen(['easyrsa', '--batch', 'build-client-full', client, 'nopass'], stderr=PIPE, stdout=PIPE, cwd=ca_dir)
+
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode != 0:
+        res['errors'].append({
+            'client': client,
+            'stdout': stdout,
+            'stderr': stderr
+        })
+        return
+
+    args = Args(
+        server=params['server'],
+        ca=ca_path('pki/ca.crt'),
+        ta=ca_path('pki/private/ta.key'),
+        cert=ca_path(f'pki/issued/{client}.crt'),
+        key=ca_path(f'pki/private/{client}.key'),
+    )
 
     os.makedirs(ca_path('pki/tmp'), exist_ok=True)
+    ovpn_path = ca_path(f'pki/tmp/{client}.ovpn')
+    zip_path = ca_path(f'pki/tmp/{client}.zip')
+    create_ovpn(args, ovpn_path)
+    create_zip(args, zip_path)
+
+    res['changed'] = True
+    res['files'].append(ovpn_path)
+    res['files'].append(zip_path)
+    res['issued'].append(client)
+
+def issue_legacy(client, params, res):
+    ca_dir = params['ca_dir']
+    def ca_path(*args):
+        return os.path.join(ca_dir, *args)
+    
+    #res['debug'].append(env)
+
+    try:
+        env = source_vars(ca_dir)
+    except ValueError as e:
+        res['errors'].append(str(e))
+        return
+    
+    proc = Popen(['./pkitool', client], stderr=PIPE, stdout=PIPE, cwd=ca_dir, env=env)
+    stdout, stderr = proc.communicate()
+
+    if proc.returncode != 0:
+        res['debug'].append({'client': client, 'stdout': stdout, 'stderr': stderr, 'returncode': proc.returncode})
+        return
+
+    #res['debug'].append({'client': client, 'stdout': stdout, 'stderr': stderr, 'returncode': proc.returncode})
+ 
+    args = Args(
+        server=params['server'],
+        ca=ca_path('keys/ca.crt'),
+        ta=ca_path('keys/ta.key'),
+        cert=ca_path(f'keys/{client}.crt'),
+        key=ca_path(f'keys/{client}.key'),
+    )
+
+    os.makedirs(ca_path('keys/tmp'), exist_ok=True)
+    ovpn_path = ca_path(f'keys/tmp/{client}.ovpn')
+    zip_path = ca_path(f'keys/tmp/{client}.zip')
+    create_ovpn(args, ovpn_path)
+    create_zip(args, zip_path)
+
+    res['changed'] = True
+    res['files'].append(ovpn_path)
+    res['files'].append(zip_path)
+    res['issued'].append(client)
+
+def main():
+    module = AnsibleModule(
+        argument_spec=dict(
+            issued=dict(type='list', elements='str'),
+            ca_dir=dict(type='str'),
+            server=dict(type='str'),
+        )
+    )
+    params = module.params
+    clients = params['issued']
+    ca_dir = params['ca_dir']
+
+    def ca_path(*args):
+        return os.path.join(ca_dir, *args)
 
     res = {
         'changed': False,
         'issued': [],
         'files': [],
-        'errors': []
+        'errors': [],
+        'debug': []
     }
+
+    issued, revoked = read_index(ca_dir)
+
+    #res['debug'].append({"issued": issued, "revoked": revoked})
+
+    legacy_ca = is_legacy_ca(ca_dir, res)
+
+    if legacy_ca:
+        issue_fn = issue_legacy
+    else:
+        issue_fn = issue
 
     for client in clients:
         if client not in issued:
-
-            proc = Popen(['easyrsa', '--batch', 'build-client-full', client, 'nopass'], stderr=PIPE, stdout=PIPE, cwd=ca_dir)
-
-            stdout, stderr = proc.communicate()
-
-            if proc.returncode != 0:
-                res['errors'].append({
-                    'client': client,
-                    'stdout': stdout,
-                    'stderr': stderr
-                })
-                continue
-
-            args = Args(
-                server=params['server'],
-                ca=ca_path('pki/ca.crt'),
-                ta=ca_path('pki/private/ta.key'),
-                cert=ca_path(f'pki/issued/{client}.crt'),
-                key=ca_path(f'pki/private/{client}.key'),
-            )
-
-            ovpn_path = ca_path(f'pki/tmp/{client}.ovpn')
-            zip_path = ca_path(f'pki/tmp/{client}.zip')
-
-            create_ovpn(args, ovpn_path)
-            create_zip(args, zip_path)
-
-            res['changed'] = True
-            res['files'].append(ovpn_path)
-            res['files'].append(zip_path)
-            res['issued'].append(client)
-
+            issue_fn(client, params, res)
+    
     module.exit_json(**res)
 
 if __name__ == "__main__":
