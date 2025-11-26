@@ -1,6 +1,6 @@
 from ansible.module_utils.basic import AnsibleModule
 
-from ansible.module_utils.read_index import read_index
+from ansible.module_utils.openvpn import read_index
 
 from subprocess import PIPE, Popen
 
@@ -20,7 +20,8 @@ def main():
     res = {
         'changed': False,
         'revoked': [],
-        'errors': []
+        'errors': [],
+        #'debug': [{'issued': issued, 'revoked': revoked}]
     }
 
     for client in clients:
@@ -35,6 +36,7 @@ def main():
                 })
                 continue
             res['revoked'].append(client)
+            res['changed'] = True
     module.exit_json(**res)
 
 if __name__ == "__main__":

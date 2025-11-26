@@ -6,4 +6,5 @@ EASYRSA_REQ_EMAIL:      me@example.net
 EASYRSA_REQ_OU:         My Organizational Unit
 vpn_ip:                 10.8.0.0
 vpn_mask:               255.255.255.0
-ca_dir:                 /root/ca
+ca_dir:                 /root/openvpn-ca
+server_cn:              server

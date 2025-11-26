@@ -1,6 +1,6 @@
 from ansible.module_utils.basic import AnsibleModule
 
-from ansible.module_utils.read_index import read_index
+from ansible.module_utils.openvpn import read_index
 
 import os
 from subprocess import PIPE, Popen

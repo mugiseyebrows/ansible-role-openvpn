@@ -1,0 +1,39 @@
+- name: Stat CA dir
+  stat:
+    path: "{{ ca_dir }}"
+  register: ca
+
+- name: Init ca and generate files
+  when: not ca.stat.exists
+  block:
+
+  - name: Create CA dir
+    file:
+      path: "{{ ca_dir }}"
+      state: directory
+      mode: '0700'
+    
+  - name: Copy vars
+    template:
+      src: vars.j2
+      dest: "{{ ca_dir }}/vars"
+
+  - name: Build CA
+    shell:
+      chdir: "{{ ca_dir }}"
+      cmd: |
+        easyrsa init-pki
+        easyrsa --batch build-ca nopass
+        cp pki/ca.crt pki/private/ca.key /etc/openvpn
+    environment:
+      EASYRSA_REQ_CN: Easy-RSA CA
+      EASYRSA_EXT_DIR: "{{ ca_dir }}/x509-types"
+
+  - name: Generate dh and ta
+    shell:
+      chdir: "{{ ca_dir }}"
+      cmd: |
+        easyrsa --batch gen-dh
+        openvpn --genkey --secret pki/private/ta.key
+        cp pki/dh.pem pki/private/ta.key /etc/openvpn
+

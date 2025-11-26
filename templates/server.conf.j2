@@ -1,7 +1,7 @@
 dev tun
 ca ca.crt
-cert server.crt
-key server.key
+cert {{server_cn}}.crt
+key {{server_cn}}.key
 crl-verify crl.pem
 dh dh.pem
 server {{ vpn_ip }} {{ vpn_mask }}

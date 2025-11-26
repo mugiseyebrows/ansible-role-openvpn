@@ -1,29 +1,40 @@
----
+- name: Install OpenVPN, easy-rsa and iptables-persistent
+  apt:
+    name:
+    - openssl
+    - openvpn
+    - easy-rsa
+    - iptables-persistent
 
-- name: Install OpenVPN
-  package:
-    name: openvpn
-    state: present
+- name: Softlink easyrsa
+  file:
+    src: /usr/share/easy-rsa/easyrsa
+    dest: /usr/local/bin/easyrsa
+    state: link
 
 - name: Write server conf
   template:
     src: server.conf.j2
     dest: /etc/openvpn/server.conf
 
-- name: Install easy-rsa
-  package:
-    name: easy-rsa
-    state: present
-
-- name: Softlink easyrsa
-  file:
-    src: /usr/share/easy-rsa/easyrsa
-    dest: /usr/bin/easyrsa
-    state: link
- 
 - name: Init CA
   include_tasks:
-    file: init.ca.yml
+    file: init-ca.yml
+
+- name: Stat server cert
+  stat:
+    path: "/etc/openvpn/{{server_cn}}.crt"
+  register: server_cert
+
+- name: Generate server cert
+  shell:
+    chdir: "{{ ca_dir }}"
+    cmd: |
+      easyrsa --batch build-server-full {{server_cn}} nopass  
+      cp pki/issued/{{server_cn}}.crt pki/private/{{server_cn}}.key /etc/openvpn
+  environment:
+    EASYRSA_EXT_DIR: "{{ ca_dir }}/x509-types"
+  when: not server_cert.stat.exists
 
 - name: Reroute all traffic
   include_tasks:
@@ -31,7 +42,7 @@
   when: reroute_all_traffic
 
 - name: Issue certs
-  issue:
+  easyrsa_issue:
     server: "{{ ansible_host }}"
     ca_dir: "{{ ca_dir }}"
     issued: "{{ issued }}"
@@ -40,10 +51,15 @@
   register: issue
 
 - name: Revoke certs
-  revoke:
+  easyrsa_revoke:
     ca_dir: "{{ ca_dir }}"
     revoked: "{{ revoked }}"
   register: revoke
+
+- name: Stat crl
+  stat:
+    path: /etc/openvpn/crl.pem
+  register: crl
 
 - name: Generate crl
   shell:
@@ -51,7 +67,7 @@
     cmd: |
       easyrsa --batch gen-crl
       cp pki/crl.pem /etc/openvpn
-  when: revoke.revoked | length > 0
+  when: revoke.changed or not crl.stat.exists
 
 - name: Enable and start service
   systemd:
