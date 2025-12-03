@@ -78,13 +78,14 @@ journalctl -u openvpn@server
 Show iptables rules
 
 ```bash
-iptables -S
+iptables -t nat -v -L POSTROUTING
 ```
 
 Check ip forwarding
 
 ```bash
 sysctl net.ipv4.ip_forward
+cat /proc/sys/net/ipv4/ip_forward
 ```
 
 License
